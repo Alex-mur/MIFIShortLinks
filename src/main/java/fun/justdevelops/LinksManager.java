@@ -28,7 +28,9 @@ public class LinksManager {
         MAIN_MENU,
         CREATE_URL,
         OPEN_URL,
-        LIST_URLS, DELETE_URL,
+        LIST_URLS,
+        DELETE_URL,
+        LOGIN_SCREEN
     }
 
     private LinksManager() {
@@ -52,6 +54,7 @@ public class LinksManager {
                 clearScreen();
                 showUserInfo();
                 switch (state) {
+                    case LOGIN_SCREEN -> showLoginScreen();
                     case MAIN_MENU -> showMainMenu();
                     case CREATE_URL -> showCreateUrlMenu();
                     case OPEN_URL -> showOpenUrlMenu();
@@ -75,7 +78,7 @@ public class LinksManager {
         System.out.println("==========СЕРВИС КОРОТКИХ ССЫЛОК==========");
         if (currentUser == null) {
             System.out.println("Пользователь: НЕ АУТЕНТИФИЦИРОВАН");
-            System.out.println("Для входа в систему введите одну из ваших коротких ссылок в разделе 2");
+            System.out.println("Войдите в систему с помощью соответствующего пункта меню");
             System.out.println("При создании новой ссылки будет создан новый пользователь");
         } else {
             System.out.println("Пользователь: " + currentUser.getId());
@@ -86,6 +89,9 @@ public class LinksManager {
 
     private void showMainMenu() {
         System.out.println("===============ГЛАВНОЕ МЕНЮ===============");
+        if (currentUser == null) {
+            System.out.println("0. Войти в систему по UUID");
+        }
         System.out.println("1. Создать короткую ссылку");
         System.out.println("2. Перейти по короткой ссылке");
         if (currentUser != null) {
@@ -99,10 +105,13 @@ public class LinksManager {
         String input = readUserInput();
         try {
             int result = Integer.parseInt(input);
-            if (result < 1 || result > 6) {
+            if (result < 0 || result > 6) {
                 throw new Exception();
             }
             switch (result) {
+                case 0 -> {
+                    if (currentUser == null) state = STATE.LOGIN_SCREEN;
+                }
                 case 1 -> state = STATE.CREATE_URL;
                 case 2 -> state = STATE.OPEN_URL;
                 case 3 -> {
@@ -121,7 +130,7 @@ public class LinksManager {
                 }
             }
         } catch (Exception e) {
-            System.out.println("Вы должны ввести число от 1 до 4, соответствующее выбранному пункту меню");
+            System.out.println("Вы должны ввести число, соответствующее выбранному пункту меню");
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException ex) {
@@ -204,6 +213,32 @@ public class LinksManager {
             deleteShortUrl(input);
         } catch (MalformedURLException | URISyntaxException me) {
             System.out.println("ОШИБКА. Указанная вами строка не является валидным адресом URL");
+            System.out.println("Нажмите Enter для продолжения");
+            readUserInput();
+        }
+    }
+
+    private void showLoginScreen() {
+        System.out.println("===============Вход в систему===============");
+        System.out.println("Введите ваш UUID и нажмите Enter");
+        System.out.println("Или введите символ [m], чтобы вернуться в главное меню");
+        String input = readUserInput();
+        if (input.equals("m")) {
+            state = STATE.MAIN_MENU;
+            return;
+        }
+        try {
+            UUID inputUUID = UUID.fromString(input);
+            currentUser = repo.getUser(inputUUID);
+            if (currentUser == null) {
+                System.out.println("Пользователь с указанным UUID не найден");
+                System.out.println("Нажмите Enter для продолжения");
+                readUserInput();
+                return;
+            }
+            state = STATE.MAIN_MENU;
+        } catch (IllegalArgumentException e) {
+            System.out.println("ОШИБКА. Введенная вами строка не является UUID");
             System.out.println("Нажмите Enter для продолжения");
             readUserInput();
         }
@@ -300,7 +335,6 @@ public class LinksManager {
             return;
         }
         printUrlInfoDetails(info);
-        currentUser = repo.getUser(info.getUserId());
         System.out.println("Нажмите Enter, чтобы открыть ссылку в браузере.");
         readUserInput();
         info.use();
